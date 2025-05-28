@@ -8,10 +8,11 @@ from pathlib import Path
 app = Flask(__name__)
 openai.api_key = os.environ["OPENAI_API_KEY"]
 
+# Directory to save audio responses
 audio_dir = Path("static/audio")
 audio_dir.mkdir(parents=True, exist_ok=True)
 
-# AWS Polly client
+# AWS Polly client setup
 polly = boto3.client(
     "polly",
     region_name=os.environ["AWS_REGION"],
@@ -21,22 +22,33 @@ polly = boto3.client(
 
 @app.route("/gpt-response", methods=["POST"])
 def gpt_response():
-    speech = request.form.get("SpeechResult", "Hi there")
+    user_input = request.form.get("SpeechResult", "").strip()
 
-    chat = openai.ChatCompletion.create(
+    if not user_input:
+        fallback_twiml = """
+        <Response>
+            <Say>I didn't catch that. Can you please repeat?</Say>
+            <Gather input="speech" timeout="3" action="/gpt-response" method="POST" />
+        </Response>
+        """
+        return Response(fallback_twiml, mimetype="text/xml")
+
+    # Call OpenAI for response
+    response = openai.ChatCompletion.create(
         model="gpt-4o",
         messages=[
             {"role": "system", "content": "You're Lina, the helpful voice of TampaLawnPro."},
-            {"role": "user", "content": speech}
+            {"role": "user", "content": user_input}
         ]
     )
-    reply = chat.choices[0].message.content
+    reply_text = response.choices[0].message.content.strip()
 
+    # Convert reply to MP3 using Polly
     filename = f"{uuid.uuid4()}.mp3"
     filepath = audio_dir / filename
 
     polly_response = polly.synthesize_speech(
-        Text=reply,
+        Text=reply_text,
         OutputFormat="mp3",
         VoiceId="Joanna"
     )
@@ -45,6 +57,8 @@ def gpt_response():
         f.write(polly_response['AudioStream'].read())
 
     audio_url = f"https://{request.host}/static/audio/{filename}"
+    
+    # Return TwiML to play audio and gather again
     twiml = f"""
     <Response>
         <Play>{audio_url}</Play>
@@ -57,9 +71,9 @@ def gpt_response():
 
 @app.route("/")
 def index():
-    return "TampaLawnPro AI voicebot is live!"
+    return "✅ TampaLawnPro AI voicebot is live and listening!"
 
-# ✅ REQUIRED FOR RENDER
+# Required for Render hosting
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
