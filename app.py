@@ -1,5 +1,5 @@
 from flask import Flask, request, Response
-from openai import OpenAI
+import openai
 import os
 import boto3
 import uuid
@@ -7,10 +7,8 @@ from pathlib import Path
 
 app = Flask(__name__)  # This must come BEFORE using @app.route
 
-# NEW OpenAI client (v1+)
-client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+openai.api_key = os.environ["OPENAI_API_KEY"]
 
-# Directory to store audio responses
 audio_dir = Path("static/audio")
 audio_dir.mkdir(parents=True, exist_ok=True)
 
@@ -29,24 +27,29 @@ def gpt_response():
         twiml = """
         <Response>
             <Say>Hi! This is Lina from TampaLawnPro. How can I help you today?</Say>
-            <Gather input="speech" timeout="3" action="/gpt-response" method="POST">
+            <Gather input="speech" timeout="6" action="/gpt-response" method="POST">
                 <Say>I'm listening...</Say>
             </Gather>
+            <Say>Goodbye!</Say>
         </Response>
         """
         return Response(twiml, mimetype="text/xml")
 
-    # Updated for OpenAI v1+
-    chat = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            {"role": "system", "content": "You're Lina, the helpful voice of TampaLawnPro."},
-            {"role": "user", "content": speech}
-        ]
-    )
-    reply = chat.choices[0].message.content
+    try:
+        chat = openai.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You're Lina, the helpful voice of TampaLawnPro."},
+                {"role": "user", "content": speech}
+            ]
+        )
+        reply = chat.choices[0].message.content.strip()
+        if not reply:
+            reply = "I'm sorry, something went wrong. Can you please repeat that?"
 
-    # Use AWS Polly to synthesize speech
+    except Exception as e:
+        reply = "Sorry, I had a technical issue. Can you say that again?"
+
     filename = f"{uuid.uuid4()}.mp3"
     filepath = audio_dir / filename
 
@@ -59,14 +62,14 @@ def gpt_response():
     with open(filepath, "wb") as f:
         f.write(polly_response['AudioStream'].read())
 
-    # Respond with TwiML to play audio and continue
     audio_url = f"https://{request.host}/static/audio/{filename}"
     twiml = f"""
     <Response>
         <Play>{audio_url}</Play>
-        <Gather input="speech" timeout="3" action="/gpt-response" method="POST">
+        <Gather input="speech" timeout="6" action="/gpt-response" method="POST">
             <Say>Is there anything else I can help you with?</Say>
         </Gather>
+        <Say>Thank you for calling TampaLawnPro. Goodbye!</Say>
     </Response>
     """
     return Response(twiml, mimetype="text/xml")
