@@ -1,5 +1,5 @@
 from flask import Flask, request, Response
-import openai
+from openai import OpenAI
 import os
 import boto3
 import uuid
@@ -7,8 +7,10 @@ from pathlib import Path
 
 app = Flask(__name__)  # This must come BEFORE using @app.route
 
-openai.api_key = os.environ["OPENAI_API_KEY"]
+# NEW OpenAI client (v1+)
+client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
+# Directory to store audio responses
 audio_dir = Path("static/audio")
 audio_dir.mkdir(parents=True, exist_ok=True)
 
@@ -34,7 +36,8 @@ def gpt_response():
         """
         return Response(twiml, mimetype="text/xml")
 
-    chat = openai.ChatCompletion.create(
+    # Updated for OpenAI v1+
+    chat = client.chat.completions.create(
         model="gpt-4o",
         messages=[
             {"role": "system", "content": "You're Lina, the helpful voice of TampaLawnPro."},
@@ -43,6 +46,7 @@ def gpt_response():
     )
     reply = chat.choices[0].message.content
 
+    # Use AWS Polly to synthesize speech
     filename = f"{uuid.uuid4()}.mp3"
     filepath = audio_dir / filename
 
@@ -55,6 +59,7 @@ def gpt_response():
     with open(filepath, "wb") as f:
         f.write(polly_response['AudioStream'].read())
 
+    # Respond with TwiML to play audio and continue
     audio_url = f"https://{request.host}/static/audio/{filename}"
     twiml = f"""
     <Response>
