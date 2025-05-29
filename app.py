@@ -27,7 +27,6 @@ def gpt_response():
         <Response>
             <Gather input="speech" timeout="5" action="/gpt-response" method="POST">
                 <Say>Hi! This is Lina from TampaLawnPro — I’m calling to offer you free access to our Instant Quote Tool for lawn care services in your area. It only takes a few seconds — would you like to check it out?</Say>
-                <Say>I'm listening...</Say>
             </Gather>
             <Say>Goodbye!</Say>
         </Response>
@@ -60,7 +59,6 @@ def gpt_response():
     <Response>
         <Gather input="speech" timeout="5" action="/gpt-response" method="POST">
             <Play>{audio_url}</Play>
-            <Say>Is there anything else I can help you with?</Say>
         </Gather>
         <Say>Goodbye!</Say>
     </Response>
