@@ -25,10 +25,11 @@ def gpt_response():
     if not speech:
         twiml = """
         <Response>
-            <Say>Hi! Hi, this is Lina from TampaLawnPro — I’m calling to offer you free access to our Instant Quote Tool for lawn care services in your area. It only takes a few seconds — would you like to check it out??</Say>
-            <Gather input="speech" timeout="3" action="/gpt-response" method="POST">
+            <Gather input="speech" timeout="5" action="/gpt-response" method="POST">
+                <Say>Hi! This is Lina from TampaLawnPro — I’m calling to offer you free access to our Instant Quote Tool for lawn care services in your area. It only takes a few seconds — would you like to check it out?</Say>
                 <Say>I'm listening...</Say>
             </Gather>
+            <Say>Goodbye!</Say>
         </Response>
         """
         return Response(twiml, mimetype="text/xml")
@@ -57,10 +58,11 @@ def gpt_response():
     audio_url = f"https://{request.host}/static/audio/{filename}"
     twiml = f"""
     <Response>
-        <Play>{audio_url}</Play>
-        <Gather input="speech" timeout="3" action="/gpt-response" method="POST">
+        <Gather input="speech" timeout="5" action="/gpt-response" method="POST">
+            <Play>{audio_url}</Play>
             <Say>Is there anything else I can help you with?</Say>
         </Gather>
+        <Say>Goodbye!</Say>
     </Response>
     """
     return Response(twiml, mimetype="text/xml")
